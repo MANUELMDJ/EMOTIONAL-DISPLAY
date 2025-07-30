@@ -21,21 +21,27 @@ fileInput.addEventListener('change', function () {
   const file = this.files[0];
   if (!file) return;
 
-  const audio = new Audio(URL.createObjectURL(file));
+  const audioURL = URL.createObjectURL(file);
+  const audio = new Audio();
+  audio.src = audioURL;
   audio.crossOrigin = 'anonymous';
-  audio.play();
+  audio.controls = true;
+  document.body.appendChild(audio);
 
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  analyser = audioCtx.createAnalyser();
-  source = audioCtx.createMediaElementSource(audio);
-  source.connect(analyser);
-  analyser.connect(audioCtx.destination);
+  audio.addEventListener('canplay', () => {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    source = audioCtx.createMediaElementSource(audio);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
 
-  analyser.fftSize = 256;
-  bufferLength = analyser.frequencyBinCount;
-  dataArray = new Uint8Array(bufferLength);
+    analyser.fftSize = 256;
+    bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
 
-  draw();
+    audio.play();
+    draw();
+  });
 });
 
 function detectEmotion(avg, bass, treble) {
