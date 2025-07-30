@@ -1,21 +1,13 @@
 const fileInput = document.getElementById('audioFile');
-const canvas = document.getElementById('visualizer');
-const ctx = canvas.getContext('2d');
-const emotionLabel = document.querySelector('#emotion strong');
-const bgVideo = document.getElementById('bgVideo');
+const visualizer = document.getElementById('visualizer');
+const stickman = document.getElementById('stickman');
+const ctx = visualizer.getContext('2d');
+const stick = stickman.getContext('2d');
 
-canvas.width = window.innerWidth;
-canvas.height = 400;
+visualizer.width = stickman.width = window.innerWidth;
+visualizer.height = stickman.height = 400;
 
 let audioCtx, analyser, source, dataArray, bufferLength;
-
-const emotions = {
-  alegria: { color: 'rgb(255,215,0)', video: 'joy.mp4' },
-  tristeza: { color: 'rgb(70,130,180)', video: 'sad.mp4' },
-  calma: { color: 'rgb(144,238,144)', video: 'calm.mp4' },
-  euforia: { color: 'rgb(255,20,147)', video: 'euphoria.mp4' },
-  miedo: { color: 'rgb(139,0,0)', video: 'fear.mp4' }
-};
 
 fileInput.addEventListener('change', function () {
   const file = this.files[0];
@@ -35,7 +27,7 @@ fileInput.addEventListener('change', function () {
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
 
-    analyser.fftSize = 256;
+    analyser.fftSize = 512;
     bufferLength = analyser.frequencyBinCount;
     dataArray = new Uint8Array(bufferLength);
 
@@ -44,40 +36,72 @@ fileInput.addEventListener('change', function () {
   });
 });
 
-function detectEmotion(avg, bass, treble) {
-  if (avg > 180 && treble > 150) return 'euforia';
-  if (avg < 60 && bass > treble) return 'tristeza';
-  if (avg < 80 && treble > bass) return 'calma';
-  if (avg > 150 && bass > 120) return 'alegria';
-  if (bass > 180 && avg < 100) return 'miedo';
-  return 'calma';
+function drawStickman(energy) {
+  stick.clearRect(0, 0, stickman.width, stickman.height);
+
+  const centerX = stickman.width / 2;
+  const baseY = stickman.height - 50;
+  const scale = 1 + energy / 150;
+
+  const headRadius = 20 * scale;
+  const bodyLength = 50 * scale;
+  const limbLength = 30 * scale;
+
+  // Head
+  stick.beginPath();
+  stick.arc(centerX, baseY - bodyLength - headRadius, headRadius, 0, Math.PI * 2);
+  stick.strokeStyle = "#FFF";
+  stick.lineWidth = 3;
+  stick.stroke();
+
+  // Body
+  stick.beginPath();
+  stick.moveTo(centerX, baseY - bodyLength);
+  stick.lineTo(centerX, baseY);
+  stick.stroke();
+
+  // Arms
+  stick.beginPath();
+  stick.moveTo(centerX, baseY - bodyLength + 10);
+  stick.lineTo(centerX - limbLength, baseY - bodyLength + 10 - energy / 5);
+  stick.moveTo(centerX, baseY - bodyLength + 10);
+  stick.lineTo(centerX + limbLength, baseY - bodyLength + 10 - energy / 5);
+  stick.stroke();
+
+  // Legs
+  stick.beginPath();
+  stick.moveTo(centerX, baseY);
+  stick.lineTo(centerX - limbLength, baseY + limbLength - energy / 5);
+  stick.moveTo(centerX, baseY);
+  stick.lineTo(centerX + limbLength, baseY + limbLength - energy / 5);
+  stick.stroke();
 }
 
 function draw() {
   requestAnimationFrame(draw);
   analyser.getByteFrequencyData(dataArray);
 
-  const avg = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
-  const bass = dataArray.slice(0, bufferLength / 4).reduce((a, b) => a + b, 0) / (bufferLength / 4);
-  const treble = dataArray.slice(3 * bufferLength / 4).reduce((a, b) => a + b, 0) / (bufferLength / 4);
+  const avgEnergy = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
 
-  const emotion = detectEmotion(avg, bass, treble);
-  emotionLabel.textContent = emotion.charAt(0).toUpperCase() + emotion.slice(1);
+  ctx.fillStyle = "#111";
+  ctx.fillRect(0, 0, visualizer.width, visualizer.height);
 
-  const theme = emotions[emotion];
-  if (bgVideo.src.indexOf(theme.video) === -1) {
-    bgVideo.src = theme.video;
-  }
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const barWidth = (canvas.width / bufferLength) * 2.5;
-  let x = 0;
-
+  ctx.beginPath();
+  const step = visualizer.width / bufferLength;
   for (let i = 0; i < bufferLength; i++) {
-    const barHeight = dataArray[i];
-    ctx.fillStyle = theme.color;
-    ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-    x += barWidth + 1;
+    const value = dataArray[i];
+    const x = i * step;
+    const y = visualizer.height / 2 + Math.sin(i * 0.05 + performance.now() * 0.002) * value * 0.4;
+
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
   }
+  ctx.strokeStyle = `hsl(${avgEnergy * 1.5}, 100%, 60%)`;
+  ctx.lineWidth = 1 + avgEnergy / 80;
+  ctx.stroke();
+
+  drawStickman(avgEnergy);
 }
