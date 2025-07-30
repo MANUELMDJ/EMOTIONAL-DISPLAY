@@ -1,0 +1,29 @@
+body {
+  margin: 0;
+  background-color: #000;
+  color: white;
+  font-family: sans-serif;
+  text-align: center;
+  overflow: hidden;
+}
+canvas {
+  display: block;
+  margin: 20px auto;
+  background: transparent;
+  border: 1px solid #444;
+  z-index: 2;
+  position: relative;
+}
+#bgVideo {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: 0;
+  opacity: 0.2;
+}
+#emotion {
+  font-size: 1.2em;
+  margin: 10px;
+}
